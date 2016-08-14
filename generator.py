@@ -26,8 +26,9 @@ URL = 'https://query.wikidata.org/sparql?format=json&query=%s' % query
 #TODO migrate to urllib for reducing dependencies?
 #TODO make sure content-encoding gzip is used
 import requests
+http_session = requests.Session()
 
-response = requests.get(URL).json()
+response = http_session.get(URL).json()
 print(response)
 
 import tempfile, os
@@ -63,7 +64,7 @@ for row in response['results']['bindings']:
     URL = row['countryFlag']['value']
     print(URL)
     #Caches whole file in RAM, redownloads if it is already present and does it use gzip?
-    r = requests.get(URL)
+    r = http_session.get(URL)
     filename = urllib.unquote_plus(os.path.basename(urlparse(URL).path))
 
     with open(os.path.join(media_dir, filename), "wb") as code:
