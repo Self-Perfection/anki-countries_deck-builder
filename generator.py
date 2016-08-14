@@ -29,7 +29,6 @@ import requests
 
 response = requests.get(URL).json()
 print(response)
-#print map(lambda x: x['countryFlag']['value'], response['results']['bindings'])
 
 import tempfile, os
 #TODO: check if files should be downloaded directly to deck.media.dir()
@@ -67,7 +66,6 @@ for row in response['results']['bindings']:
     r = requests.get(URL)
     filename = urllib.unquote_plus(os.path.basename(urlparse(URL).path))
 
-    #TODO save with proper names. Use urlparse.urlparse and os.path
     with open(os.path.join(media_dir, filename), "wb") as code:
         code.write(r.content)
 
