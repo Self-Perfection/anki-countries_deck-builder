@@ -1,0 +1,86 @@
+#!/usr/bin/python2
+#anki uses python2. Most likely we would need to reuse anki libs therefore we are stuck with python2
+
+query = '''SELECT ?country ?countryLabel ?countryFlag
+WHERE 
+{
+  #Or should it be Q3624078 (sovereign state)
+  ?country wdt:P31 wd:Q6256 .
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }
+  ?country wdt:P41 ?countryFlag .
+}'''
+
+#TODO Don't hardcode path to anki libs. Ask in CLI parameter?
+import sys
+sys.path.insert(0, "/usr/share/anki")
+
+outfile = sys.argv[1]
+if not outfile.endswith('.apkg'):
+    outfile += '.apkg'
+
+import urllib 
+
+query = urllib.quote_plus(query)
+URL = 'https://query.wikidata.org/sparql?format=json&query=%s' % query
+
+#TODO migrate to urllib for reducing dependencies?
+#TODO make sure content-encoding gzip is used
+import requests
+
+response = requests.get(URL).json()
+print(response)
+#print map(lambda x: x['countryFlag']['value'], response['results']['bindings'])
+
+import tempfile, os
+#TODO: check if files should be downloaded directly to deck.media.dir()
+media_dir = tempfile.mkdtemp(prefix='anki_deck_generator.', suffix='.downloaded_media')
+(fd, temp_deck_path) = tempfile.mkstemp(prefix='anki_deck_generator.', suffix=".anki2")
+os.close(fd)
+os.unlink(temp_deck_path)
+
+def graceful_exit():
+    import shutil
+    print('Removing %s' % media_dir)
+    shutil.rmtree(media_dir, ignore_errors=True)
+    #TODO should return error on ^C
+    exit()
+
+import signal
+signal.signal(signal.SIGINT, lambda signal,frame: graceful_exit())
+
+from anki import Collection as aopen
+from anki.exporting import *
+deck = aopen(temp_deck_path)
+
+import os
+from urlparse import urlparse
+
+for row in response['results']['bindings']:
+    ## Ewww, urllib.URLopener().retrieve does not follow TLS and other redirects
+    ## But it has uber feature to not redownload file if it is already present
+    #testfile = urllib.URLopener()
+    #print testfile.retrieve(row['countryFlag']['value'])
+
+    URL = row['countryFlag']['value']
+    print(URL)
+    #Caches whole file in RAM, redownloads if it is already present and does it use gzip?
+    r = requests.get(URL)
+    filename = urllib.unquote_plus(os.path.basename(urlparse(URL).path))
+
+    #TODO save with proper names. Use urlparse.urlparse and os.path
+    with open(os.path.join(media_dir, filename), "wb") as code:
+        code.write(r.content)
+
+    f = deck.newNote()
+    f['Front'] = '<img src="%s"/>' % filename
+    f['Back'] = row['countryLabel']['value']
+    deck.addNote(f)
+    deck.media.addFile(os.path.join(media_dir, filename))
+
+
+e = AnkiPackageExporter(deck)
+#Here full path should be used. Otherwise apkg is produced  in deck media directory
+e.exportInto(outfile)
+
+
+#graceful_exit()
