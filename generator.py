@@ -1,6 +1,16 @@
 #!/usr/bin/python2
 #anki uses python2. Most likely we would need to reuse anki libs therefore we are stuck with python2
 
+import argparse
+import os
+import signal
+import sys
+import tempfile
+import urllib
+from urlparse import urlparse
+
+import requests
+
 query = '''SELECT ?country ?countryLabel ?countryFlag
 WHERE 
 {
@@ -11,11 +21,8 @@ WHERE
 }'''
 
 #TODO Don't hardcode path to anki libs. Ask in CLI parameter?
-import sys
 sys.path.insert(0, "/usr/share/anki")
 
-import argparse
-import os
 parser = argparse.ArgumentParser(description='Countries deck generator for anki')
 parser.add_argument('outfile', metavar='destination_file')
 parser.add_argument('-s', '--sample', action='store_true',
@@ -26,20 +33,17 @@ if not args.outfile.endswith('.apkg'):
 # Looks like anki libs change working directory to media directory of current deck
 # Therefore absolute path should be stored before creating temporary deck
 args.outfile = os.path.abspath(args.outfile)
-import urllib 
 
 query = urllib.quote_plus(query)
 URL = 'https://query.wikidata.org/sparql?format=json&query=%s' % query
 
 #TODO migrate to urllib for reducing dependencies?
 #TODO make sure content-encoding gzip is used
-import requests
 http_session = requests.Session()
 
 response = http_session.get(URL).json()
 print(response)
 
-import tempfile, os
 #TODO: check if files should be downloaded directly to deck.media.dir()
 media_dir = tempfile.mkdtemp(prefix='anki_deck_generator.', suffix='.downloaded_media')
 (fd, temp_deck_path) = tempfile.mkstemp(prefix='anki_deck_generator.', suffix=".anki2")
@@ -53,15 +57,12 @@ def graceful_exit():
     #TODO should return error on ^C
     exit()
 
-import signal
 signal.signal(signal.SIGINT, lambda signal,frame: graceful_exit())
 
 from anki import Collection as aopen
 from anki.exporting import *
 deck = aopen(temp_deck_path)
 
-import os
-from urlparse import urlparse
 
 for row in response['results']['bindings']:
     ## Ewww, urllib.URLopener().retrieve does not follow TLS and other redirects
