@@ -14,10 +14,16 @@ WHERE
 import sys
 sys.path.insert(0, "/usr/share/anki")
 
-outfile = sys.argv[1]
-if not outfile.endswith('.apkg'):
-    outfile += '.apkg'
-
+import argparse
+import os
+parser = argparse.ArgumentParser(description='Countries deck generator for anki')
+parser.add_argument('outfile', metavar='destination_file')
+args = parser.parse_args()
+if not args.outfile.endswith('.apkg'):
+    args.outfile += '.apkg'
+# Looks like anki libs change working directory to media directory of current deck
+# Therefore absolute path should be stored before creating temporary deck
+args.outfile = os.path.abspath(args.outfile)
 import urllib 
 
 query = urllib.quote_plus(query)
@@ -78,8 +84,7 @@ for row in response['results']['bindings']:
 
 
 e = AnkiPackageExporter(deck)
-#Here full path should be used. Otherwise apkg is produced  in deck media directory
-e.exportInto(outfile)
+e.exportInto(args.outfile)
 
 
 #graceful_exit()
