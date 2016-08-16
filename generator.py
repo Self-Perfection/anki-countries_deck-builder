@@ -18,6 +18,8 @@ import argparse
 import os
 parser = argparse.ArgumentParser(description='Countries deck generator for anki')
 parser.add_argument('outfile', metavar='destination_file')
+parser.add_argument('-s', '--sample', action='store_true',
+        help='Build sample deck with just one note. Full download might be really long.')
 args = parser.parse_args()
 if not args.outfile.endswith('.apkg'):
     args.outfile += '.apkg'
@@ -81,6 +83,9 @@ for row in response['results']['bindings']:
     f['Back'] = row['countryLabel']['value']
     deck.addNote(f)
     deck.media.addFile(os.path.join(media_dir, filename))
+
+    if args.sample:
+        break
 
 
 e = AnkiPackageExporter(deck)
