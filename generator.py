@@ -20,14 +20,15 @@ WHERE
   ?country wdt:P41 ?countryFlag .
 }'''
 
-#TODO Don't hardcode path to anki libs. Ask in CLI parameter?
-sys.path.insert(0, "/usr/share/anki")
 
 parser = argparse.ArgumentParser(description='Countries deck generator for anki')
 parser.add_argument('outfile', metavar='destination_file')
 parser.add_argument('-s', '--sample', action='store_true',
         help='Build sample deck with just one note. Full download might be really long.')
+parser.add_argument('--anki-libs-dir', default='/usr/share/anki',
+        help='Directory with anki libraries (default: %(default)s)')
 args = parser.parse_args()
+sys.path.insert(0, args.anki_libs_dir)
 if not args.outfile.endswith('.apkg'):
     args.outfile += '.apkg'
 # Looks like anki libs change working directory to media directory of current deck
