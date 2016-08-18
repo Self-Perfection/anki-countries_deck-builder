@@ -1,13 +1,16 @@
-#!/usr/bin/python2
-#anki uses python2. Most likely we would need to reuse anki libs therefore we are stuck with python2
+#!/usr/bin/python
 
 import argparse
 import os
 import signal
 import sys
 import tempfile
-import urllib
-from urlparse import urlparse
+if sys.version_info >= (3,):
+    import urllib.parse as urlquoter
+    from urllib.parse import urlparse
+else:
+    import urllib as urlquoter
+    from urlparse import urlparse
 
 import requests
 
@@ -35,7 +38,7 @@ if not args.outfile.endswith('.apkg'):
 # Therefore absolute path should be stored before creating temporary deck
 args.outfile = os.path.abspath(args.outfile)
 
-query = urllib.quote_plus(query)
+query = urlquoter.quote_plus(query)
 URL = 'https://query.wikidata.org/sparql?format=json&query=%s' % query
 
 #TODO migrate to urllib for reducing dependencies?
@@ -75,7 +78,7 @@ for row in response['results']['bindings']:
     print(URL)
     #Caches whole file in RAM, redownloads if it is already present and does it use gzip?
     r = http_session.get(URL)
-    filename = urllib.unquote_plus(os.path.basename(urlparse(URL).path))
+    filename = urlquoter.unquote_plus(os.path.basename(urlparse(URL).path))
 
     with open(os.path.join(media_dir, filename), "wb") as code:
         code.write(r.content)
