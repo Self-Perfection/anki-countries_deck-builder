@@ -67,6 +67,20 @@ from anki import Collection as aopen
 from anki.exporting import *
 deck = aopen(temp_deck_path)
 
+dm = deck.models
+m = dm.new('Country')
+fm = dm.newField('Wikidata ID')
+dm.addField(m, fm)
+fm = dm.newField('Flag')
+dm.addField(m, fm)
+fm = dm.newField('Contry name en')
+dm.addField(m, fm)
+t = dm.newTemplate('Flag -> country name')
+t['qfmt'] = '{{Flag}}'
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name en}}'
+dm.addTemplate(m, t)
+dm.add(m)
+
 
 for row in response['results']['bindings']:
     ## Ewww, urllib.URLopener().retrieve does not follow TLS and other redirects
@@ -84,8 +98,9 @@ for row in response['results']['bindings']:
         code.write(r.content)
 
     f = deck.newNote()
-    f['Front'] = '<img src="%s"/>' % filename
-    f['Back'] = row['countryLabel']['value']
+    f['Wikidata ID'] = row['country']['value']
+    f['Flag'] = '<img src="%s"/>' % filename
+    f['Contry name en'] = row['countryLabel']['value']
     deck.addNote(f)
     deck.media.addFile(os.path.join(media_dir, filename))
 
