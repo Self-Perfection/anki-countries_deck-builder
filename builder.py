@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+# Copyright 2016 Alexander Meshcheryakov <alexander.s.m+git@gmail.com>
+# License: GNU AGPL, version 3 or later; https://www.gnu.org/licenses/agpl.html
+
 import argparse
 import os
 import signal
