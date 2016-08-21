@@ -73,7 +73,7 @@ deck = aopen(temp_deck_path)
 
 dm = deck.models
 m = dm.new('Country')
-fm = dm.newField('Wikidata ID')
+fm = dm.newField('Wikidata URI')
 dm.addField(m, fm)
 fm = dm.newField('Flag')
 dm.addField(m, fm)
@@ -102,7 +102,7 @@ for row in response['results']['bindings']:
         code.write(r.content)
 
     f = deck.newNote()
-    f['Wikidata ID'] = row['country']['value']
+    f['Wikidata URI'] = row['country']['value']
     f['Flag'] = '<img src="%s"/>' % filename
     f['Contry name en'] = row['countryLabel']['value']
     deck.addNote(f)
