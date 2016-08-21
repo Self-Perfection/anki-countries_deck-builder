@@ -5,6 +5,7 @@
 
 import argparse
 import os
+import re
 import signal
 import sys
 import tempfile
@@ -24,6 +25,8 @@ parser.add_argument('-s', '--sample', action='store_true',
         help='Build sample deck with just one note. Full download might be really long.')
 parser.add_argument('--anki-libs-dir', default='/usr/share/anki',
         help='Directory with anki libraries (default: %(default)s)')
+parser.add_argument('-l', '--languages', default='en,zh,es,ar,ru,pt,de,fr',
+        help='Comma separated list of languages to retrieve (default: %(default)s). First item would be used in card templates.')
 args = parser.parse_args()
 sys.path.insert(0, args.anki_libs_dir)
 if not args.outfile.endswith('.apkg'):
@@ -32,12 +35,12 @@ if not args.outfile.endswith('.apkg'):
 # Therefore absolute path should be stored before creating temporary deck
 args.outfile = os.path.abspath(args.outfile)
 
-query = '''SELECT ?country ?countryLabel ?countryFlag
+# Test your query interactively at https://query.wikidata.org/
+query = '''SELECT ?country ?countryFlag
 WHERE
 {
   #Or should it be Q3624078 (sovereign state)
   ?country wdt:P31 wd:Q6256 .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }
   ?country wdt:P41 ?countryFlag .
 }'''
 if args.sample:
@@ -77,11 +80,13 @@ fm = dm.newField('Wikidata URI')
 dm.addField(m, fm)
 fm = dm.newField('Flag')
 dm.addField(m, fm)
-fm = dm.newField('Contry name en')
-dm.addField(m, fm)
+for lang in args.languages.split(','):
+    fm = dm.newField('Contry name ' + lang)
+    dm.addField(m, fm)
 t = dm.newTemplate('Flag -> country name')
 t['qfmt'] = '{{Flag}}'
-t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name en}}'
+default_language = args.languages.split(',')[0]
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
 dm.addTemplate(m, t)
 dm.add(m)
 
@@ -104,7 +109,16 @@ for row in response['results']['bindings']:
     f = deck.newNote()
     f['Wikidata URI'] = row['country']['value']
     f['Flag'] = '<img src="%s"/>' % filename
-    f['Contry name en'] = row['countryLabel']['value']
+
+    wikidata_id = re.sub('https?://www.wikidata.org/entity/', '', f['Wikidata URI'])
+    # See API docs at https://www.wikidata.org/w/api.php?action=help&recursivesubmodules=1#wbgetentities
+    URL = ('https://www.wikidata.org/w/api.php' +
+        '?action=wbgetentities&props=labels&format=json&' +
+        'ids=%s&languages=%s' % (wikidata_id, args.languages.replace(',', '|')) )
+    labels = http_session.get(URL).json()['entities'][wikidata_id]['labels']
+    for lang in args.languages.split(','):
+        f['Contry name ' + lang] = labels[lang]['value']
+
     deck.addNote(f)
     deck.media.addFile(os.path.join(media_dir, filename))
 
