@@ -17,15 +17,6 @@ else:
 
 import requests
 
-query = '''SELECT ?country ?countryLabel ?countryFlag
-WHERE 
-{
-  #Or should it be Q3624078 (sovereign state)
-  ?country wdt:P31 wd:Q6256 .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }
-  ?country wdt:P41 ?countryFlag .
-}'''
-
 
 parser = argparse.ArgumentParser(description='Countries deck generator for anki')
 parser.add_argument('outfile', metavar='destination_file')
@@ -41,6 +32,16 @@ if not args.outfile.endswith('.apkg'):
 # Therefore absolute path should be stored before creating temporary deck
 args.outfile = os.path.abspath(args.outfile)
 
+query = '''SELECT ?country ?countryLabel ?countryFlag
+WHERE
+{
+  #Or should it be Q3624078 (sovereign state)
+  ?country wdt:P31 wd:Q6256 .
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }
+  ?country wdt:P41 ?countryFlag .
+}'''
+if args.sample:
+    query += ' LIMIT 1'
 query = urlquoter.quote_plus(query)
 URL = 'https://query.wikidata.org/sparql?format=json&query=%s' % query
 
@@ -106,9 +107,6 @@ for row in response['results']['bindings']:
     f['Contry name en'] = row['countryLabel']['value']
     deck.addNote(f)
     deck.media.addFile(os.path.join(media_dir, filename))
-
-    if args.sample:
-        break
 
 
 e = AnkiPackageExporter(deck)
