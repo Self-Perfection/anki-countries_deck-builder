@@ -18,6 +18,8 @@ else:
 
 import requests
 
+# Change this if you are going to fork this script for other purpose
+user_agent = 'Anki countries deck builder bot (+https://github.com/Self-Perfection/anki-countries_deck-builder)'
 
 parser = argparse.ArgumentParser(description='Countries deck generator for anki')
 parser.add_argument('outfile', metavar='destination_file')
@@ -48,9 +50,8 @@ if args.sample:
 query = urlquoter.quote_plus(query)
 URL = 'https://query.wikidata.org/sparql?format=json&query=%s' % query
 
-#TODO migrate to urllib for reducing dependencies?
-#TODO make sure content-encoding gzip is used
 http_session = requests.Session()
+http_session.headers['User-Agent'] = user_agent
 
 response = http_session.get(URL).json()
 print(response)
