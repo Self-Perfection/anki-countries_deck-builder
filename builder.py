@@ -6,6 +6,7 @@
 import argparse
 import os
 import re
+import shutil
 import signal
 import sys
 import tempfile
@@ -56,24 +57,21 @@ http_session.headers['User-Agent'] = user_agent
 response = http_session.get(URL).json()
 print(response)
 
-#TODO: check if files should be downloaded directly to deck.media.dir()
-media_dir = tempfile.mkdtemp(prefix='anki_deck_generator.', suffix='.downloaded_media')
-(fd, temp_deck_path) = tempfile.mkstemp(prefix='anki_deck_generator.', suffix=".anki2")
-os.close(fd)
-os.unlink(temp_deck_path)
+temp_dir = tempfile.mkdtemp(prefix='anki_deck_generator.')
+media_dir = os.path.join(temp_dir, 'downloaded_media')
+os.makedirs(media_dir)
 
-def graceful_exit():
-    import shutil
-    print('Removing %s' % media_dir)
-    shutil.rmtree(media_dir, ignore_errors=True)
+def remove_temp_files():
+    deck.close()
+    shutil.rmtree(temp_dir, ignore_errors=True)
     #TODO should return error on ^C
     exit()
 
-signal.signal(signal.SIGINT, lambda signal,frame: graceful_exit())
+signal.signal(signal.SIGINT, lambda signal,frame: remove_temp_files())
 
 from anki import Collection as aopen
 from anki.exporting import *
-deck = aopen(temp_deck_path)
+deck = aopen(os.path.join(temp_dir, 'collection.anki2'))
 
 dm = deck.models
 m = dm.new('Country')
@@ -127,5 +125,4 @@ for row in response['results']['bindings']:
 e = AnkiPackageExporter(deck)
 e.exportInto(args.outfile)
 
-
-#graceful_exit()
+remove_temp_files()
