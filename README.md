@@ -5,7 +5,7 @@ This tool grabs countries related data from free knowledge base [Wikidata](https
 
 This version retrieves:
 * Countries names for arbitrary list of languages
-* SVG flag for each country
+* SVG flag and locator map for each country
 
 It should be relatively easy to extend list of retrieved data.
 

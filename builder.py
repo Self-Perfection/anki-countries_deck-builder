@@ -37,15 +37,20 @@ if not args.outfile.endswith('.apkg'):
 # Looks like anki libs change working directory to media directory of current deck
 # Therefore absolute path should be stored before creating temporary deck
 args.outfile = os.path.abspath(args.outfile)
+default_language = args.languages.split(',')[0]
 
 # Test your query interactively at https://query.wikidata.org/
-query = '''SELECT ?country ?countryFlag
+query = '''SELECT ?country
+(SAMPLE(?countryFlag) as ?countryFlag)
+(SAMPLE(?locatorMap) as ?locatorMap)
 WHERE
 {
   #Or should it be Q3624078 (sovereign state)
   ?country wdt:P31 wd:Q6256 .
   ?country wdt:P41 ?countryFlag .
-}'''
+  ?country wdt:P242 ?locatorMap .
+}
+GROUP BY ?country'''
 if args.sample:
     query += ' LIMIT 1'
 query = urlquoter.quote_plus(query)
@@ -79,35 +84,37 @@ fm = dm.newField('Wikidata URI')
 dm.addField(m, fm)
 fm = dm.newField('Flag')
 dm.addField(m, fm)
+fm = dm.newField('Locator map')
+dm.addField(m, fm)
 for lang in args.languages.split(','):
     fm = dm.newField('Contry name ' + lang)
     dm.addField(m, fm)
 t = dm.newTemplate('Flag -> country name')
 t['qfmt'] = '{{Flag}}'
-default_language = args.languages.split(',')[0]
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
+dm.addTemplate(m, t)
+t = dm.newTemplate('Locator map -> country name')
+t['qfmt'] = '{{Locator map}}'
 t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
 dm.addTemplate(m, t)
 dm.add(m)
 
 
-for row in response['results']['bindings']:
-    ## Ewww, urllib.URLopener().retrieve does not follow TLS and other redirects
-    ## But it has uber feature to not redownload file if it is already present
-    #testfile = urllib.URLopener()
-    #print testfile.retrieve(row['countryFlag']['value'])
-
-    URL = row['countryFlag']['value']
+def download_image(URL):
+    """Add file to media and return its basename of file"""
     print(URL)
-    #Caches whole file in RAM, redownloads if it is already present and does it use gzip?
-    r = http_session.get(URL)
     filename = urlquoter.unquote_plus(os.path.basename(urlparse(URL).path))
-
+    r = http_session.get(URL)
     with open(os.path.join(media_dir, filename), "wb") as code:
         code.write(r.content)
+    deck.media.addFile(os.path.join(media_dir, filename))
+    return filename
 
+for row in response['results']['bindings']:
     f = deck.newNote()
     f['Wikidata URI'] = row['country']['value']
-    f['Flag'] = '<img src="%s"/>' % filename
+    f['Flag'] = '<img src="%s"/>' % download_image(row['countryFlag']['value'])
+    f['Locator map'] = '<img src="%s"/>' % download_image(row['locatorMap']['value'])
 
     wikidata_id = re.sub('https?://www.wikidata.org/entity/', '', f['Wikidata URI'])
     # See API docs at https://www.wikidata.org/w/api.php?action=help&recursivesubmodules=1#wbgetentities
@@ -119,7 +126,6 @@ for row in response['results']['bindings']:
         f['Contry name ' + lang] = labels[lang]['value']
 
     deck.addNote(f)
-    deck.media.addFile(os.path.join(media_dir, filename))
 
 
 e = AnkiPackageExporter(deck)
