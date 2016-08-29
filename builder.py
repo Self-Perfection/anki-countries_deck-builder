@@ -90,13 +90,20 @@ for lang in args.languages.split(','):
     fm = dm.newField('Contry name ' + lang)
     dm.addField(m, fm)
 t = dm.newTemplate('Flag -> country name')
-t['qfmt'] = '{{Flag}}'
+t['qfmt'] = '<div class="flag">{{Flag}}</div>'
 t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
 dm.addTemplate(m, t)
 t = dm.newTemplate('Locator map -> country name')
 t['qfmt'] = '{{Locator map}}'
 t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
 dm.addTemplate(m, t)
+m['css'] += '''
+
+.flag img {
+ border: 1px;
+ border-style: solid;
+}
+'''
 dm.add(m)
 
 
