@@ -43,14 +43,17 @@ default_language = args.languages.split(',')[0]
 query = '''SELECT ?country
 (SAMPLE(?countryFlag) as ?countryFlag)
 (SAMPLE(?locatorMap) as ?locatorMap)
+(SAMPLE(?population) as ?population)
 WHERE
 {
   #Or should it be Q3624078 (sovereign state)
   ?country wdt:P31 wd:Q6256 .
   ?country wdt:P41 ?countryFlag .
   ?country wdt:P242 ?locatorMap .
+  OPTIONAL {?country wdt:P1082 ?population}
 }
-GROUP BY ?country'''
+GROUP BY ?country
+ORDER BY DESC(?population)'''
 if args.sample:
     query += ' LIMIT 1'
 query = urlquoter.quote_plus(query)
@@ -85,6 +88,8 @@ dm.addField(m, fm)
 fm = dm.newField('Flag')
 dm.addField(m, fm)
 fm = dm.newField('Locator map')
+dm.addField(m, fm)
+fm = dm.newField('Population')
 dm.addField(m, fm)
 for lang in args.languages.split(','):
     fm = dm.newField('Contry name ' + lang)
@@ -122,6 +127,8 @@ for row in response['results']['bindings']:
     f['Wikidata URI'] = row['country']['value']
     f['Flag'] = '<img src="%s"/>' % download_image(row['countryFlag']['value'])
     f['Locator map'] = '<img src="%s"/>' % download_image(row['locatorMap']['value'])
+    if 'population' in row.keys():
+        f['Population'] = row['population']['value']
 
     wikidata_id = re.sub('https?://www.wikidata.org/entity/', '', f['Wikidata URI'])
     # See API docs at https://www.wikidata.org/w/api.php?action=help&recursivesubmodules=1#wbgetentities
