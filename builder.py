@@ -44,6 +44,7 @@ query = '''SELECT ?country
 (SAMPLE(?countryFlag) as ?countryFlag)
 (SAMPLE(?locatorMap) as ?locatorMap)
 (SAMPLE(?population) as ?population)
+(SAMPLE(?capital) as ?capital)
 WHERE
 {
   #Or should it be Q3624078 (sovereign state)
@@ -51,6 +52,7 @@ WHERE
   ?country wdt:P41 ?countryFlag .
   ?country wdt:P242 ?locatorMap .
   OPTIONAL {?country wdt:P1082 ?population}
+  OPTIONAL {?country wdt:P36 ?capital}
 }
 GROUP BY ?country
 ORDER BY DESC(?population)'''
@@ -94,13 +96,25 @@ dm.addField(m, fm)
 for lang in args.languages.split(','):
     fm = dm.newField('Contry name ' + lang)
     dm.addField(m, fm)
-t = dm.newTemplate('Flag -> country name')
+    fm = dm.newField('Capital name ' + lang)
+    dm.addField(m, fm)
+country_field = 'Contry name %s' % default_language
+capital_field = 'Capital name %s' % default_language
+t = dm.newTemplate('Flag -> country')
 t['qfmt'] = '<div class="flag">{{Flag}}</div>'
-t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{%s}}' % country_field
 dm.addTemplate(m, t)
-t = dm.newTemplate('Locator map -> country name')
+t = dm.newTemplate('Locator map -> country')
 t['qfmt'] = '{{Locator map}}'
-t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{Contry name %s}}' % default_language
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{%s}}' % country_field
+dm.addTemplate(m, t)
+t = dm.newTemplate('Country -> capital')
+t['qfmt'] = '{{#%s}}What is the capital of {{%s}}?{{/%s}}' % (capital_field, country_field, capital_field)
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{%s}}' % capital_field
+dm.addTemplate(m, t)
+t = dm.newTemplate('Capital -> country')
+t['qfmt'] = '{{#%s}}Which country is {{%s}} capital of?{{/%s}}' % ((capital_field,) * 3)
+t['afmt'] = '{{FrontSide}}\n\n<hr id=answer>\n\n{{%s}}' % country_field
 dm.addTemplate(m, t)
 m['css'] += '''
 
@@ -122,6 +136,17 @@ def download_image(URL):
     deck.media.addFile(os.path.join(media_dir, filename))
     return filename
 
+def get_entity_labels(uri, field_name):
+    wikidata_id = re.sub('https?://www.wikidata.org/entity/', '', uri)
+    # See API docs at https://www.wikidata.org/w/api.php?action=help&recursivesubmodules=1#wbgetentities
+    URL = ('https://www.wikidata.org/w/api.php' +
+        '?action=wbgetentities&props=labels&format=json&' +
+        'ids=%s&languages=%s' % (wikidata_id, args.languages.replace(',', '|')) )
+    labels = http_session.get(URL).json()['entities'][wikidata_id]['labels']
+    for lang in args.languages.split(','):
+        if lang in labels.keys():
+            f[field_name + lang] = labels[lang]['value']
+
 for row in response['results']['bindings']:
     f = deck.newNote()
     f['Wikidata URI'] = row['country']['value']
@@ -130,14 +155,9 @@ for row in response['results']['bindings']:
     if 'population' in row.keys():
         f['Population'] = row['population']['value']
 
-    wikidata_id = re.sub('https?://www.wikidata.org/entity/', '', f['Wikidata URI'])
-    # See API docs at https://www.wikidata.org/w/api.php?action=help&recursivesubmodules=1#wbgetentities
-    URL = ('https://www.wikidata.org/w/api.php' +
-        '?action=wbgetentities&props=labels&format=json&' +
-        'ids=%s&languages=%s' % (wikidata_id, args.languages.replace(',', '|')) )
-    labels = http_session.get(URL).json()['entities'][wikidata_id]['labels']
-    for lang in args.languages.split(','):
-        f['Contry name ' + lang] = labels[lang]['value']
+    get_entity_labels(f['Wikidata URI'], 'Contry name ')
+    if 'capital' in row.keys():
+        get_entity_labels(row['capital']['value'], 'Capital name ')
 
     deck.addNote(f)
 
