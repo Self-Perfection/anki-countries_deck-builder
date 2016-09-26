@@ -136,16 +136,6 @@ def download_image(URL):
     deck.media.addFile(os.path.join(media_dir, filename))
     return filename
 
-def get_entity_labels(uri, field_name):
-    wikidata_id = re.sub('https?://www.wikidata.org/entity/', '', uri)
-    # See API docs at https://www.wikidata.org/w/api.php?action=help&recursivesubmodules=1#wbgetentities
-    URL = ('https://www.wikidata.org/w/api.php' +
-        '?action=wbgetentities&props=labels&format=json&' +
-        'ids=%s&languages=%s' % (wikidata_id, args.languages.replace(',', '|')) )
-    labels = http_session.get(URL).json()['entities'][wikidata_id]['labels']
-    for lang in args.languages.split(','):
-        if lang in labels.keys():
-            f[field_name + lang] = labels[lang]['value']
 
 for row in response['results']['bindings']:
     f = deck.newNote()
@@ -155,10 +145,23 @@ for row in response['results']['bindings']:
     if 'population' in row.keys():
         f['Population'] = row['population']['value']
 
-    get_entity_labels(f['Wikidata URI'], 'Contry name ')
+    entities_to_label={f['Wikidata URI']: 'Contry name '}
     if 'capital' in row.keys():
-        get_entity_labels(row['capital']['value'], 'Capital name ')
-
+        entities_to_label[row['capital']['value']] = 'Capital name '
+    entities_to_label = {re.sub('https?://www.wikidata.org/entity/', '', k): v
+            for k, v in entities_to_label.items()}
+    # See API docs at https://www.wikidata.org/w/api.php?action=help&modules=wbgetentities
+    URL = ('https://www.wikidata.org/w/api.php' +
+        '?action=wbgetentities&props=labels&format=json&' +
+        'ids={ids}&languages={languages}').format(
+                ids='|'.join(entities_to_label.keys()),
+                languages=args.languages.replace(',', '|') )
+    j = http_session.get(URL).json()
+    for wikidata_id, field_name in entities_to_label.items():
+        labels = j['entities'][wikidata_id]['labels']
+        for lang in args.languages.split(','):
+            if lang in labels.keys():
+                f[field_name + lang] = labels[lang]['value']
     deck.addNote(f)
 
 
